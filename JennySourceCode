@@ -1,0 +1,320 @@
+using System;
+using System.Collections.Generic;
+using System.ComponentModel;
+using System.Data;
+using System.Drawing;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+
+using System.Windows.Forms;
+using Microsoft.Speech.Recognition;
+using Microsoft.Speech.Synthesis;
+using System.Globalization;
+using JennyAI.hedSms;
+using JennyAI.Properties;
+using System.Diagnostics;
+namespace JennyAI
+{
+ public partial class Form1 : Form
+ {
+ static SpeechSynthesizer ss = new SpeechSynthesizer();
+ static SpeechRecognitionEngine sre;
+ static bool speechOn = true;
+ string weather = "";
+
+ public Form1()
+ {
+ InitializeComponent();
+ }
+private void Form1_Load(object sender, EventArgs e)
+ {
+ //serialPort1.Open();
+ ss.SetOutputToDefaultAudioDevice();
+
+ CultureInfo ci = new CultureInfo("en-US");
+ sre = new SpeechRecognitionEngine(ci);
+ sre.SpeechRecognized += sre_SpeechRecognized;
+Choices ch_StartStopCommands = new Choices();
+ ch_StartStopCommands.Add("speech on");
+ ch_StartStopCommands.Add("speech off");
+ ch_StartStopCommands.Add("klatu barada nikto");
+ ch_StartStopCommands.Add("yes please");
+ ch_StartStopCommands.Add("no");
+ ch_StartStopCommands.Add("hello jenny");
+ ch_StartStopCommands.Add("introduce yourself");
+ ch_StartStopCommands.Add("thank you jenny");
+ ch_StartStopCommands.Add("How are you jenny");
+ ch_StartStopCommands.Add("how is the weather");
+ ch_StartStopCommands.Add("open my college website");
+ ch_StartStopCommands.Add("show my mail");
+ ch_StartStopCommands.Add("age");
+ ch_StartStopCommands.Add("name");
+ ch_StartStopCommands.Add("goodbye jenny");
+GrammarBuilder gb_StartStop = new GrammarBuilder();
+ gb_StartStop.Append(ch_StartStopCommands);
+ Grammar g_StartStop = new Grammar(gb_StartStop);
+Choices ch_Numbers = new Choices();
+ ch_Numbers.Add("1");
+ ch_Numbers.Add("2");
+ ch_Numbers.Add("3");
+ ch_Numbers.Add("4"); // technically Add(new string[] { "4" });
+ ch_Numbers.Add("5");
+ ch_Numbers.Add("6");
+ ch_Numbers.Add("7");
+ ch_Numbers.Add("8");
+ ch_Numbers.Add("9");
+ ch_Numbers.Add("0");
+GrammarBuilder gb_nameAge = new GrammarBuilder();
+ gb_nameAge.Append("What is your");
+ gb_nameAge.Append(ch_StartStopCommands);
+Grammar g_nameAge = new Grammar(gb_nameAge);
+GrammarBuilder gb_WhatIsXplusY = new GrammarBuilder();
+ gb_WhatIsXplusY.Append("What is");
+ gb_WhatIsXplusY.Append(ch_Numbers);
+ gb_WhatIsXplusY.Append("plus");
+ gb_WhatIsXplusY.Append(ch_Numbers);
+ Grammar g_WhatIsXplusY = new Grammar(gb_WhatIsXplusY);
+ Choices cmd = new Choices();
+ Choices cmd2 = new Choices();
+
+ cmd.Add("on");
+ cmd.Add("off");
+ cmd.Add("hot");
+ cmd.Add("cold");
+cmd2.Add("time");
+ cmd2.Add("date");
+GrammarBuilder gb_fan = new GrammarBuilder();
+ gb_fan.Append("Turn");
+ gb_fan.Append(cmd);
+ gb_fan.Append("fan");
+ Grammar gb_f = new Grammar(gb_fan);
+GrammarBuilder gb_normal = new GrammarBuilder();
+ gb_normal.Append("no thanks");
+ Grammar gb_normalg = new Grammar(gb_normal);
+GrammarBuilder gb_smart = new GrammarBuilder();
+ gb_smart.Append("Its");
+ gb_smart.Append("getting");
+ gb_smart.Append(cmd);
+ gb_smart.Append("here");
+ Grammar gb_smartg = new Grammar(gb_smart);
+GrammarBuilder gb_dateTime = new GrammarBuilder();
+ gb_dateTime.Append("What");
+ gb_dateTime.Append("is");
+ gb_dateTime.Append("the");
+ gb_dateTime.Append(cmd2);
+ Grammar gb_dateTimeg = new Grammar(gb_dateTime);
+sre.LoadGrammarAsync(g_nameAge);
+ sre.LoadGrammarAsync(gb_dateTimeg);
+ sre.LoadGrammarAsync(gb_normalg);
+ sre.LoadGrammarAsync(gb_smartg);
+ sre.LoadGrammarAsync(g_StartStop);
+ sre.LoadGrammarAsync(g_WhatIsXplusY);
+ sre.LoadGrammarAsync(gb_f);
+
+ sre.SetInputToDefaultAudioDevice();
+ sre.RecognizeAsync(RecognizeMode.Multiple); // multiple grammars
+backgroundWorker1.RunWorkerAsync();
+ pictureBox1.SizeMode = PictureBoxSizeMode.StretchImage;
+ pictureBox1.Image = Properties.Resources.jShut;
+ss.Rate += 1;
+ ss.SpeakStarted += Ss_SpeakStarted;
+ ss.SpeakCompleted += Ss_SpeakCompleted;
+ }
+private void Ss_SpeakCompleted(object sender, SpeakCompletedEventArgs e)
+ {
+ pictureBox1.Image = Resources.jShut;
+ }
+private void Ss_SpeakStarted(object sender, SpeakStartedEventArgs e)
+ {
+ pictureBox1.Image = Resources.jFace;
+ }
+public void sre_SpeechRecognized(object sender, SpeechRecognizedEventArgs e)
+ {
+ string txt = e.Result.Text;
+ float confidence = e.Result.Confidence;
+
+ if (confidence < 0.60) return;
+if (txt.IndexOf("speech on") >= 0)
+ {
+ Console.WriteLine("Speech is now ON");
+ speechOn = true;
+ }
+if (txt.IndexOf("speech off") >= 0)
+ {
+ Console.WriteLine("Speech is now OFF");
+ speechOn = false;
+ }
+if (speechOn == false) return;
+if (txt.IndexOf("klatu") >= 0 && txt.IndexOf("barada") >= 0)
+ {
+ ((SpeechRecognitionEngine)sender).RecognizeAsyncCancel();
+ Console.WriteLine("(Speaking: Farewell)");
+ ss.Speak("Farewell");
+ }
+if (txt.IndexOf("What") >= 0 && txt.IndexOf("plus") >= 0) // what is 2 plus 3
+ {
+ string[] words = txt.Split(' '); // or use e.Result.Words
+ int num1 = int.Parse(words[2]);
+ int num2 = int.Parse(words[4]);
+ int sum = num1 + num2;
+ Console.WriteLine("(Speaking: " + words[2] + " plus " + words[4] + " equals " +
+sum + ")");
+ ss.SpeakAsync(words[2] + " plus " + words[4] + " equals " + sum);
+ }
+ if (txt.IndexOf("Turn") >= 0 && txt.IndexOf("fan") >= 0)
+ {
+ string[] words = txt.Split(' '); // or use e.Result.Words
+ if (words[1].Equals("on"))
+ {
+ label1.Text = "Fan on";
+ ss.SpeakAsync("Turning fan on");
+ //serialPort1.Write("1");
+ }
+ else if (words[1].Equals("off"))
+ {
+ label1.Text = "Fan off";
+ ss.SpeakAsync("Turning fan off");
+ //serialPort1.Write("0");
+ }
+ }
+if (txt.IndexOf("What") >= 0 && txt.IndexOf("the") >= 0)
+ {
+ string[] words = txt.Split(' '); // or use e.Result.Words
+ if (words[3].Equals("date"))
+ {
+ label1.Text = "Current Date";
+ string date = DateTime.Now.ToString("dd-MMM-yyyy");
+ ss.SpeakAsync(date);
+ // serialPort1.Write("1");
+ }
+ else if (words[3].Equals("time"))
+ {
+ label1.Text = "Current Time";
+ string date = DateTime.Now.ToString("h:m");
+ //label1.Text = "Current Time";
+ string[] date1 = date.Split(':');
+ ss.SpeakAsync("Its " + date1[0] + " hours and " + date1[1] + " minutes");
+ //serialPort1.Write("0");
+ }
+}
+if (txt.IndexOf("Its") >= 0 && txt.IndexOf("getting") >= 0)
+ {
+string[] words = txt.Split(' '); // or use e.Result.Words
+ if (words[2].Equals("hot"))
+ {
+ label1.Text = "Hot";
+ ss.SpeakAsync("Should I turn on the fan Sir");
+ weather = "hot";
+}
+ else if (words[2].Equals("cold"))
+ {
+ label1.Text = "cold";
+ ss.SpeakAsync("Should I turn off the fan Sir");
+ weather = "cold";
+ }
+}
+if (txt.IndexOf("yes please") >= 0)
+ {
+if (weather.Equals("hot"))
+ {
+label1.Text = "Fan on";
+ ss.SpeakAsync("Turning fan on");
+ //serialPort1.Write("1");
+ }
+ else if (weather.Equals("cold"))
+ {
+ label1.Text = "Fan off";
+ ss.SpeakAsync("Turning fan off");
+ //serialPort1.Write("0");
+ }
+}
+ if (txt.IndexOf("no") >= 0)
+ {
+ ss.SpeakAsync("OK Sir");
+ }
+ if (txt.IndexOf("hello jenny") >= 0)
+ {
+ ss.SpeakAsync("Hello Sir how can i help you");
+ }
+ if (txt.IndexOf("introduce yourself") >= 0)
+ {
+ ss.SpeakAsync("Hello. My name is Jenny. your personal Assistant.");
+ }
+if (txt.IndexOf("Get me the Employee Details") >= 0)
+ {
+ ss.SpeakAsync("Sure sir. What is the PS number?");
+ }
+if (txt.IndexOf("how is the weather") >= 0)
+ {
+ ss.SpeakAsync("I'll search for you");
+ Process.Start("chrome.exe", "http://www.google.com/search?q=weather");
+ }
+ if (txt.IndexOf("open my college website") >= 0)
+ {
+ ss.SpeakAsync("Okay!");
+ Process.Start("chrome.exe", "http://www.somaiya.edu/kjsieit");
+ }
+ if (txt.IndexOf("show my mail") >= 0)
+ {
+ ss.SpeakAsync("Here is your mailbox");
+ Process.Start("chrome.exe", "http://www.gmail.com");
+ }
+ if (txt.IndexOf("thank you jenny") >= 0)
+ {
+ ss.SpeakAsync("you are welcome sir");
+ }
+ if (txt.IndexOf("How are you jenny") >= 0)
+ {
+ ss.SpeakAsync("i am fine sir");
+ }
+ /*if (txt.IndexOf("What is " + empGender + " father's name") >= 0)
+ {
+ ss.SpeakAsync(empGender + " father's name is " + empFather);
+ }*/
+ if (txt.IndexOf("What is your ") >= 0)
+ {
+ string[] words = txt.Split(' ');
+ if (words[3].Equals("age"))
+ {
+ ss.SpeakAsync("I am two months old");
+ }
+ else if (words[3].Equals("name"))
+ {
+ ss.SpeakAsync("My name is jenny");
+ }
+ }
+if (txt.IndexOf("goodbye jenny") >= 0)
+ {
+ ss.SpeakAsync("goodbye sir");
+ Application.Exit();
+ }
+
+ }
+private void portsadd()
+ {
+}
+private void backgroundWorker1_DoWork(object sender, DoWorkEventArgs e)
+ {
+
+ }
+private void backgroundWorker1_RunWorkerCompleted(object sender,
+RunWorkerCompletedEventArgs e)
+ {
+ backgroundWorker1.RunWorkerAsync();
+ }
+private void comboBox1_SelectedIndexChanged(object sender, EventArgs e)
+ {
+}
+private void btnStart_Click(object sender, EventArgs e)
+ {
+ ss.SpeakAsync("Hello. Welcome to the world of Artificial Intelligence. My name is
+Jenny. your personal Assistant");
+ }
+private void button1_Click(object sender, EventArgs e)
+ {
+ pictureBox1.Image = Resources.fan;
+ }
+
+ }
+}
